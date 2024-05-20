@@ -12,7 +12,7 @@ export function formatMoney(num, maxSignificantFigures = 6, maxDecimalPlaces = 3
 const symbols = ["", "k", "m", "b", "t", "q", "Q", "s", "S", "o", "n", "e33", "e36", "e39"];
 
 /**
- * Return a formatted representation of the monetary amount using scale sympols (e.g. 6.50M) 
+ * Return a formatted representation of the monetary amount using scale sympols (e.g. 6.50M)
  * @param {number} num - The number to format
  * @param {number=} maxSignificantFigures - (default: 6) The maximum significant figures you wish to see (e.g. 123, 12.3 and 1.23 all have 3 significant figures)
  * @param {number=} maxDecimalPlaces - (default: 3) The maximum decimal places you wish to see, regardless of significant figures. (e.g. 12.3, 1.2, 0.1 all have 1 decimal)
@@ -46,10 +46,20 @@ export function formatNumber(num, minSignificantFigures = 3, minDecimalPlaces = 
 }
 
 /** Formats some RAM amount as a round number of GB with thousands separators e.g. `1,028 GB` */
-export function formatRam(num) { return `${Math.round(num).toLocaleString('en')} GB`; }
+export function formatRam(num, decimals = 0) {
+    if (!+num) return '0 GB'
+
+    const k = 1024
+    const dm = decimals < 0 ? 0 : decimals
+    const sizes = ['GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    const i = Math.floor(Math.log(num) / Math.log(k))
+    return `${parseFloat((num / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 /** Return a datatime in ISO format */
-export function formatDateTime(datetime) { return datetime.toISOString(); }
+export function formatDateTime(datetime) {
+    return datetime.toISOString();
+}
 
 /** Format a duration (in milliseconds) as e.g. '1h 21m 6s' for big durations or e.g '12.5s' / '23ms' for small durations */
 export function formatDuration(duration) {
@@ -79,10 +89,17 @@ export function formatDuration(duration) {
 }
 
 /** Generate a hashCode for a string that is pretty unique most of the time */
-export function hashCode(s) { return s.split("").reduce(function (a, b) { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0); }
+export function hashCode(s) {
+    return s.split("").reduce(function (a, b) {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a
+    }, 0);
+}
 
 /** @param {NS} ns **/
-export function disableLogs(ns, listOfLogs) { ['disableLog'].concat(...listOfLogs).forEach(log => checkNsInstance(ns, '"disableLogs"').disableLog(log)); }
+export function disableLogs(ns, listOfLogs) {
+    ['disableLog'].concat(...listOfLogs).forEach(log => checkNsInstance(ns, '"disableLogs"').disableLog(log));
+}
 
 /** Joins all arguments as components in a path, e.g. pathJoin("foo", "bar", "/baz") = "foo/bar/baz" **/
 export function pathJoin(...args) {
@@ -100,25 +117,34 @@ export function getFilePath(file) {
 
 /** @param {NS} ns
  *  Use where a function is required to run a script and you have already referenced ns.run in your script **/
-export function getFnRunViaNsRun(ns) { return checkNsInstance(ns, '"getFnRunViaNsRun"').run; }
+export function getFnRunViaNsRun(ns) {
+    return checkNsInstance(ns, '"getFnRunViaNsRun"').run;
+}
 
 /** @param {NS} ns
  *  Use where a function is required to run a script and you have already referenced ns.exec in your script **/
 export function getFnRunViaNsExec(ns, host = "home") {
     checkNsInstance(ns, '"getFnRunViaNsExec"');
-    return function (scriptPath, ...args) { return ns.exec(scriptPath, host, ...args); }
+    return function (scriptPath, ...args) {
+        return ns.exec(scriptPath, host, ...args);
+    }
 }
+
 // VARIATIONS ON NS.ISRUNNING
 
 /** @param {NS} ns
  *  Use where a function is required to run a script and you have already referenced ns.run in your script  */
-export function getFnIsAliveViaNsIsRunning(ns) { return checkNsInstance(ns, '"getFnIsAliveViaNsIsRunning"').isRunning; }
+export function getFnIsAliveViaNsIsRunning(ns) {
+    return checkNsInstance(ns, '"getFnIsAliveViaNsIsRunning"').isRunning;
+}
 
 /** @param {NS} ns
  *  Use where a function is required to run a script and you have already referenced ns.ps in your script  */
 export function getFnIsAliveViaNsPs(ns) {
     checkNsInstance(ns, '"getFnIsAliveViaNsPs"');
-    return function (pid, host) { return ns.ps(host).some(process => process.pid === pid); }
+    return function (pid, host) {
+        return ns.ps(host).some(process => process.pid === pid);
+    }
 }
 
 /**
@@ -220,6 +246,7 @@ export async function runCommand(ns, command, fileName, args = [], verbose = fal
 }
 
 const _cachedExports = [];
+
 /** @param {NS} ns - The nestcript instance passed to your script's main entry point
  * @returns {string[]} The set of all funciton names exported by this file. */
 function getExports(ns) {
@@ -257,21 +284,21 @@ export async function runCommand_Custom(ns, fnRun, command, fileName, args = [],
             `\n  ${command}\nWith the following arguments:    ${JSON.stringify(args)}`);
     // It's possible for the file to be deleted while we're trying to execute it, so even wrap writing the file in a retry
     return await autoRetry(ns, async () => {
-        // To improve performance, don't re-write the temp script if it's already in place with the correct contents.
-        const oldContents = ns.read(fileName);
-        if (oldContents != script) {
-            if (oldContents) // Create some noise if temp scripts are being created with the same name but different contents
-                ns.tprint(`WARNING: Had to overwrite temp script ${fileName}\nOld Contents:\n${oldContents}\nNew Contents:\n${script}` +
-                    `\nThis warning is generated as part of an effort to switch over to using only 'immutable' temp scripts. ` +
-                    `Please paste a screenshot in Discord at https://discord.com/channels/415207508303544321/935667531111342200`);
-            ns.write(fileName, script, "w");
-            // Wait for the script to appear and be readable (game can be finicky on actually completing the write)
-            await autoRetry(ns, () => ns.read(fileName), c => c == script, () => `Temporary script ${fileName} is not available, ` +
-                `despite having written it. (Did a competing process delete or overwrite it?)`, maxRetries, retryDelayMs, undefined, verbose, verbose);
-        }
-        // Run the script, now that we're sure it is in place
-        return fnRun(fileName, 1 /* Always 1 thread */, ...args);
-    }, pid => pid !== 0,
+            // To improve performance, don't re-write the temp script if it's already in place with the correct contents.
+            const oldContents = ns.read(fileName);
+            if (oldContents != script) {
+                if (oldContents) // Create some noise if temp scripts are being created with the same name but different contents
+                    ns.tprint(`WARNING: Had to overwrite temp script ${fileName}\nOld Contents:\n${oldContents}\nNew Contents:\n${script}` +
+                        `\nThis warning is generated as part of an effort to switch over to using only 'immutable' temp scripts. ` +
+                        `Please paste a screenshot in Discord at https://discord.com/channels/415207508303544321/935667531111342200`);
+                ns.write(fileName, script, "w");
+                // Wait for the script to appear and be readable (game can be finicky on actually completing the write)
+                await autoRetry(ns, () => ns.read(fileName), c => c == script, () => `Temporary script ${fileName} is not available, ` +
+                    `despite having written it. (Did a competing process delete or overwrite it?)`, maxRetries, retryDelayMs, undefined, verbose, verbose);
+            }
+            // Run the script, now that we're sure it is in place
+            return fnRun(fileName, 1 /* Always 1 thread */, ...args);
+        }, pid => pid !== 0,
         () => `The temp script was not run (likely due to insufficient RAM).` +
             `\n  Script:  ${fileName}\n  Args:    ${JSON.stringify(args)}\n  Command: ${command}` +
             `\nThe script that ran this will likely recover and try again later once you have more free ram.`,
@@ -280,7 +307,7 @@ export async function runCommand_Custom(ns, fnRun, command, fileName, args = [],
 
 /**
  * Wait for a process id to complete running
- * Importing incurs a maximum of 0.1 GB RAM (for ns.isRunning) 
+ * Importing incurs a maximum of 0.1 GB RAM (for ns.isRunning)
  * @param {NS} ns - The nestcript instance passed to your script's main entry point
  * @param {int} pid - The process id to monitor
  * @param {bool=} verbose - (default false) If set to true, pid and result of command are logged.
@@ -290,9 +317,10 @@ export async function waitForProcessToComplete(ns, pid, verbose) {
     if (!verbose) disableLogs(ns, ['isRunning']);
     return await waitForProcessToComplete_Custom(ns, ns.isRunning, pid, verbose);
 }
+
 /**
  * An advanced version of waitForProcessToComplete that lets you pass your own "isAlive" test to reduce RAM requirements (e.g. to avoid referencing ns.isRunning)
- * Importing incurs 0 GB RAM (assuming fnIsAlive is implemented using another ns function you already reference elsewhere like ns.ps) 
+ * Importing incurs 0 GB RAM (assuming fnIsAlive is implemented using another ns function you already reference elsewhere like ns.ps)
  * @param {NS} ns - The nestcript instance passed to your script's main entry point
  * @param {(pid: number) => Promise<boolean>} fnIsAlive - A single-argument function used to start the new sript, e.g. `ns.isRunning` or `pid => ns.ps("home").some(process => process.pid === pid)`
  **/
@@ -328,7 +356,7 @@ function asError(error) {
 /** Helper to retry something that failed temporarily (can happen when e.g. we temporarily don't have enough RAM to run)
  * @param {NS} ns - The nestcript instance passed to your script's main entry point */
 export async function autoRetry(ns, fnFunctionThatMayFail, fnSuccessCondition, errorContext = "Success condition not met",
-    maxRetries = 5, initialRetryDelayMs = 50, backoffRate = 3, verbose = false, tprintFatalErrors = true) {
+                                maxRetries = 5, initialRetryDelayMs = 50, backoffRate = 3, verbose = false, tprintFatalErrors = true) {
     checkNsInstance(ns, '"autoRetry"');
     let retryDelayMs = initialRetryDelayMs, attempts = 0;
     while (attempts++ <= maxRetries) {
@@ -338,8 +366,7 @@ export async function autoRetry(ns, fnFunctionThatMayFail, fnSuccessCondition, e
             if (!fnSuccessCondition(result))
                 throw asError(error);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             const fatal = attempts >= maxRetries;
             log(ns, `${fatal ? 'FAIL' : 'INFO'}: Attempt ${attempts} of ${maxRetries} failed` +
                 (fatal ? `: ${typeof error === 'string' ? error : error.message || JSON.stringify(error)}` : `. Trying again in ${retryDelayMs}ms...`),
@@ -383,13 +410,13 @@ export function scanAllServers(ns) {
     return discoveredHosts; // The list of scanned hosts should now be the set of all hosts in the game!
 }
 
-/** @param {NS} ns 
+/** @param {NS} ns
  * Get a dictionary of active source files, taking into account the current active bitnode as well (optionally disabled). **/
 export async function getActiveSourceFiles(ns, includeLevelsFromCurrentBitnode = true) {
     return await getActiveSourceFiles_Custom(ns, getNsDataThroughFile, includeLevelsFromCurrentBitnode);
 }
 
-/** @param {NS} ns 
+/** @param {NS} ns
  * @param {(ns: NS, command: string, fName?: string, args?: any, verbose?: any, maxRetries?: number, retryDelayMs?: number) => Promise<any>} fnGetNsDataThroughFile
  * getActiveSourceFiles Helper that allows the user to pass in their chosen implementation of getNsDataThroughFile to minimize RAM usage **/
 export async function getActiveSourceFiles_Custom(ns, fnGetNsDataThroughFile, includeLevelsFromCurrentBitnode = true) {
@@ -400,18 +427,21 @@ export async function getActiveSourceFiles_Custom(ns, fnGetNsDataThroughFile, in
         dictSourceFiles = await fnGetNsDataThroughFile(ns,
             `Object.fromEntries(ns.singularity.getOwnedSourceFiles().map(sf => [sf.n, sf.lvl]))`,
             '/Temp/owned-source-files.txt');
-    } catch { dictSourceFiles = {}; } // If this fails (e.g. low RAM), return an empty dictionary
+    } catch {
+        dictSourceFiles = {};
+    } // If this fails (e.g. low RAM), return an empty dictionary
     // If the user is currently in a given bitnode, they will have its features unlocked
     if (includeLevelsFromCurrentBitnode) {
         try {
             const currentNode = (await fnGetNsDataThroughFile(ns, 'ns.getResetInfo()', '/Temp/reset-info.txt')).currentNode;
             dictSourceFiles[currentNode] = Math.max(3, dictSourceFiles[currentNode] || 0);
-        } catch { /* We are expected to be fault-tolerant in low-ram conditions */ }
+        } catch { /* We are expected to be fault-tolerant in low-ram conditions */
+        }
     }
     return dictSourceFiles;
 }
 
-/** @param {NS} ns 
+/** @param {NS} ns
  * Return bitnode multiplers, or null if they cannot be accessed. **/
 export async function tryGetBitNodeMultipliers(ns) {
     return await tryGetBitNodeMultipliers_Custom(ns, getNsDataThroughFile);
@@ -422,13 +452,19 @@ export async function tryGetBitNodeMultipliers(ns) {
 export async function tryGetBitNodeMultipliers_Custom(ns, fnGetNsDataThroughFile) {
     checkNsInstance(ns, '"tryGetBitNodeMultipliers"');
     let canGetBitNodeMultipliers = false;
-    try { canGetBitNodeMultipliers = 5 in (await getActiveSourceFiles_Custom(ns, fnGetNsDataThroughFile)); } catch { }
+    try {
+        canGetBitNodeMultipliers = 5 in (await getActiveSourceFiles_Custom(ns, fnGetNsDataThroughFile));
+    } catch {
+    }
     if (!canGetBitNodeMultipliers) return null;
-    try { return await fnGetNsDataThroughFile(ns, 'ns.getBitNodeMultipliers()', '/Temp/bitnode-multipliers.txt'); } catch { }
+    try {
+        return await fnGetNsDataThroughFile(ns, 'ns.getBitNodeMultipliers()', '/Temp/bitnode-multipliers.txt');
+    } catch {
+    }
     return null;
 }
 
-/** @param {NS} ns 
+/** @param {NS} ns
  * Returns the number of instances of the current script running on the specified host. **/
 export async function instanceCount(ns, onHost = "home", warn = true, tailOtherInstances = true) {
     checkNsInstance(ns, '"alreadyRunning"');
@@ -466,14 +502,19 @@ export async function getStocksValue(ns) {
     if (askPrices == null) return 0; // No TIX API Access
     const bidPrices = await stockGetAll('getBidPrice');
     const positions = await stockGetAll('getPosition');
-    return stockSymbols.map(sym => ({ sym, pos: positions[sym], ask: askPrices[sym], bid: bidPrices[sym] }))
+    return stockSymbols.map(sym => ({
+        sym,
+        pos: positions[sym],
+        ask: askPrices[sym],
+        bid: bidPrices[sym]
+    }))
         .reduce((total, stk) => total + (stk.pos[0] * stk.bid) /* Long Value */ + stk.pos[2] * (stk.pos[3] * 2 - stk.ask) /* Short Value */
             // Subtract commission only if we have one or more shares (this is money we won't get when we sell our position)
             // If for some crazy reason we have shares both in the short and long position, we'll have to pay the commission twice (two separate sales)
             - 100000 * (Math.sign(stk.pos[0]) + Math.sign(stk.pos[2])), 0);
 }
 
-/** @param {NS} ns 
+/** @param {NS} ns
  * Returns a helpful error message if we forgot to pass the ns instance to a function */
 export function checkNsInstance(ns, fnName = "this function") {
     if (ns === undefined || !ns.print) throw new Error(`The first argument to ${fnName} should be a 'ns' instance.`);
@@ -511,7 +552,7 @@ export function getConfiguration(ns, argsSchema) {
                             `current default value ${JSON.stringify(match[1])} (${typeof match[1]}). The resulting behaviour may be unpredictable.`, false, 'warning');
                     else
                         log(ns, `INFO: Overriding "${key}" value: ${JSON.stringify(match[1])}  ->  ${JSON.stringify(override)}`);
-                    overriddenSchema[matchIndex] = { ...match }; // Clone the (previously shallow-copied) object at this position of the new argsSchema
+                    overriddenSchema[matchIndex] = {...match}; // Clone the (previously shallow-copied) object at this position of the new argsSchema
                     overriddenSchema[matchIndex][1] = override; // Update the value of the clone.
                 }
             }
@@ -528,7 +569,7 @@ export function getConfiguration(ns, argsSchema) {
     try {
         const finalOptions = ns.flags(overriddenSchema);
         log(ns, `INFO: Running ${scriptName} with the following settings:` + Object.keys(finalOptions).filter(a => a != "_").map(a =>
-            `\n  ${a.length == 1 ? "-" : "--"}${a} = ${finalOptions[a] === null ? "null" : JSON.stringify(finalOptions[a])}`).join("") +
+                `\n  ${a.length == 1 ? "-" : "--"}${a} = ${finalOptions[a] === null ? "null" : JSON.stringify(finalOptions[a])}`).join("") +
             `\nrun ${scriptName} --help  to get more information about these options.`)
         return finalOptions;
     } catch (err) { // Detect if the user passed invalid arguments, and return help text

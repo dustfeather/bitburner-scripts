@@ -291,7 +291,10 @@ async function getHudData(ns, bitNode, dictSourceFiles, options) {
 
 function formatSixSigFigs(value, minDecimalPlaces = 0, maxDecimalPlaces = 0) {
     return value >= 1E7 ? formatNumberShort(value, 6, 3) :
-        value.toLocaleString(undefined, { minimumFractionDigits: minDecimalPlaces, maximumFractionDigits: maxDecimalPlaces });
+        value.toLocaleString(undefined, {
+            minimumFractionDigits: minDecimalPlaces,
+            maximumFractionDigits: maxDecimalPlaces
+        });
 }
 
 /** @param {NS} ns
@@ -300,7 +303,7 @@ async function getGangInfo(ns) {
     return await getNsDataThroughFile(ns, 'ns.gang.inGang() ? ns.gang.getGangInformation() : false', '/Temp/gang-stats.txt')
 }
 
-/** @param {NS} ns 
+/** @param {NS} ns
  * @returns {Promise<Server[]>} **/
 async function getAllServersInfo(ns) {
     const serverNames = await getNsDataThroughFile(ns, 'scanAllServers(ns)');
@@ -315,6 +318,7 @@ function addCSS(doc) {
     if (hudParent) hudParent.style.zIndex = 1E4; // Tail windows start around 1500, this should keep the HUD above them
     doc.head.insertAdjacentHTML('beforeend', css(hudParent ? eval('window').getComputedStyle(hudParent) : null));
 }
+
 const css = (rootStyle) => `<style id="statsCSS">
     .MuiTooltip-popper { z-index: 10001 } /* Sadly, not parented by its owners, so must be updated with MuiCollapse-root's parent */
     .tooltip  { margin: 0; position: relative; }
