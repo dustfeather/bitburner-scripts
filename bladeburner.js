@@ -240,7 +240,7 @@ async function mainLoop(ns) {
     // NEXT STEP: Pick the action we should be working on.
     let bestActionName, reason;
     const actionSummaryString = (action) => `Success Chance: ${(100 * minChance(action)).toFixed(1)}%` +
-        (maxChance(action) - minChance(action) < 0.001 ? '' : ` to ${(100 * maxChance(action)).toFixed(1)}%`) + `, Remaining: ${getCount(action)}`
+        (maxChance(action) - minChance(action) < 0.001 ? '' : ` to ${(100 * maxChance(action)).toFixed(1)}%`) + `, Remaining: ${((getCount(action) * 100) / 100).toFixed(2)}`
 
     // Trigger stamina recovery if we drop below our --low-stamina-pct configuration, and remain trigered until we've recovered to --high-stamina-pct
     const stamina = await getBBInfo(ns, `getStamina()`); // Returns [current, max];
